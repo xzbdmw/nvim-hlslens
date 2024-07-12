@@ -2,17 +2,17 @@ local fn = vim.fn
 local api = vim.api
 local cmd = vim.cmd
 
-local utils = require('hlslens.utils')
-local config = require('hlslens.config')
-local disposable = require('hlslens.lib.disposable')
-local decorator = require('hlslens.decorator')
-local throttle = require('hlslens.lib.throttle')
-local position = require('hlslens.position')
-local event = require('hlslens.lib.event')
+local utils = require("hlslens.utils")
+local config = require("hlslens.config")
+local disposable = require("hlslens.lib.disposable")
+local decorator = require("hlslens.decorator")
+local throttle = require("hlslens.lib.throttle")
+local position = require("hlslens.position")
+local event = require("hlslens.lib.event")
 
-local winhl = require('hlslens.render.winhl')
-local extmark = require('hlslens.render.extmark')
-local floatwin = require('hlslens.render.floatwin')
+local winhl = require("hlslens.render.winhl")
+local extmark = require("hlslens.render.extmark")
+local floatwin = require("hlslens.render.floatwin")
 
 local DUMMY_POS
 
@@ -39,11 +39,11 @@ local PENDING = 3
 local Render = {
     initialized = false,
     stopDisposes = {},
-    disposables = {}
+    disposables = {},
 }
 
 local function chunksToText(chunks)
-    local text = ''
+    local text = ""
     for _, chunk in ipairs(chunks) do
         text = text .. chunk[1]
     end
@@ -52,7 +52,7 @@ end
 
 function Render:doNohAndStop(defer)
     local function f()
-        cmd('noh')
+        cmd("noh")
         self:stop()
     end
 
@@ -93,8 +93,8 @@ local function refreshCurrentBuf()
 
     local winid = api.nvim_get_current_win()
     local cursor = api.nvim_win_get_cursor(winid)
-    local curPos = {cursor[1], cursor[2] + 1}
-    local topLine, botLine = fn.line('w0'), fn.line('w$')
+    local curPos = { cursor[1], cursor[2] + 1 }
+    local topLine, botLine = fn.line("w0"), fn.line("w$")
     local hit = pos:buildInfo(curPos, topLine, botLine)
     if self.calmDown then
         if not pos:cursorInRange(curPos) then
@@ -111,23 +111,27 @@ local function refreshCurrentBuf()
     end
     local idx, rIdx = pos.nearestIdx, pos.nearestRelIdx
     local sList, eList = pos.sList, pos.eList
-    self.addWinHighlight(0, sList[idx], eList[idx])
-    self:doLens(bufnr, sList, not pos.offsetPos, idx, rIdx, {topLine, botLine}, {fs, fe})
-    event:emit('LensUpdated', bufnr, pos.pattern, pos.changedtick, sList, eList, idx, rIdx,
-        {topLine, botLine})
+
+    local cur_row = unpack(api.nvim_win_get_cursor(0))
+    local lnum = unpack(sList[idx])
+    if cur_row == lnum then
+        self.addWinHighlight(0, sList[idx], eList[idx])
+    end
+    self:doLens(bufnr, sList, not pos.offsetPos, idx, rIdx, { topLine, botLine }, { fs, fe })
+    event:emit("LensUpdated", bufnr, pos.pattern, pos.changedtick, sList, eList, idx, rIdx, { topLine, botLine })
 end
 
 function Render:createEvents()
     local dps = {}
-    local gid = api.nvim_create_augroup('HlSearchLensRender', {})
-    local events = {'CursorMoved', 'TermEnter'}
+    local gid = api.nvim_create_augroup("HlSearchLensRender", {})
+    local events = { "CursorMoved", "TermEnter" }
     if self.calmDown then
-        table.insert(events, 'TextChanged')
-        table.insert(events, 'TextChangedI')
-        event:on('TextChanged', function()
+        table.insert(events, "TextChanged")
+        table.insert(events, "TextChangedI")
+        event:on("TextChanged", function()
             self:doNohAndStop(true)
         end, dps)
-        event:on('TextChangedI', function()
+        event:on("TextChangedI", function()
             self:doNohAndStop(true)
         end, dps)
     end
@@ -135,10 +139,10 @@ function Render:createEvents()
         group = gid,
         callback = function(ev)
             event:emit(ev.event)
-        end
+        end,
     })
-    event:on('CursorMoved', self.throttledRefresh, dps)
-    event:on('TermEnter', function()
+    event:on("CursorMoved", self.throttledRefresh, dps)
+    event:on("TermEnter", function()
         self.clear(true, 0, true)
     end, dps)
     return disposable:create(function()
@@ -151,7 +155,7 @@ local function enoughSizeForVirt(winid, lnum, text, lineWidth)
     if utils.foldClosed(winid, lnum) > 0 then
         return true
     end
-    local endVcol = utils.vcol(winid, {lnum, '$'}) - 1
+    local endVcol = utils.vcol(winid, { lnum, "$" }) - 1
     local remainingVcol
     if vim.wo[winid].wrap then
         remainingVcol = lineWidth - (endVcol - 1) % lineWidth - 1
@@ -177,34 +181,35 @@ end
 ---@param nearest boolean whether nearest lens
 ---@param idx number nearest index in the plist
 ---@param relIdx number relative index, negative means before current position, positive means after
-function Render:addLens(bufnr, startPosList, nearest, idx, relIdx)
-    if type(config.override_lens) == 'function' then
+---@param extmark? number relative index, negative means before current position, positive means after
+function Render:addLens(bufnr, startPosList, nearest, idx, relIdx, extmark)
+    if type(config.override_lens) == "function" then
         -- export render module for hacking :)
-        return config.override_lens(self, startPosList, nearest, idx, relIdx)
+        return config.override_lens(self, startPosList, nearest, idx, relIdx, extmark)
     end
     local sfw = vim.v.searchforward == 1
     local indicator, text, chunks
     local absRelIdx = math.abs(relIdx)
     if absRelIdx > 1 then
-        indicator = ('%d%s'):format(absRelIdx, sfw ~= (relIdx > 1) and 'N' or 'n')
+        indicator = ("%d%s"):format(absRelIdx, sfw ~= (relIdx > 1) and "N" or "n")
     elseif absRelIdx == 1 then
-        indicator = sfw ~= (relIdx == 1) and 'N' or 'n'
+        indicator = sfw ~= (relIdx == 1) and "N" or "n"
     else
-        indicator = ''
+        indicator = ""
     end
 
     local lnum, col = unpack(startPosList[idx])
     if nearest then
         local cnt = #startPosList
-        if indicator ~= '' then
-            text = ('[%s %d/%d]'):format(indicator, idx, cnt)
+        if indicator ~= "" then
+            text = ("[%s %d/%d]"):format(indicator, idx, cnt)
         else
-            text = ('[%d/%d]'):format(idx, cnt)
+            text = ("[%d/%d]"):format(idx, cnt)
         end
-        chunks = {{' '}, {text, 'HlSearchLensNear'}}
+        chunks = { { " " }, { text, "HlSearchLensNear" } }
     else
-        text = ('[%s %d]'):format(indicator, idx)
-        chunks = {{' '}, {text, 'HlSearchLens'}}
+        text = ("[%s %d]"):format(indicator, idx)
+        chunks = { { " " }, { text, "HlSearchLens" } }
     end
     self.setVirt(bufnr, lnum - 1, col - 1, chunks, nearest)
 end
@@ -221,19 +226,19 @@ function Render.setVirt(bufnr, row, col, chunks, nearest)
     local self = Render
     local when = self.nearestFloatWhen
     local exLnum, exCol = row + 1, col + 1
-    if nearest and (when == 'auto' or when == 'always') then
+    if nearest and (when == "auto" or when == "always") then
         if utils.isCmdLineWin(bufnr) then
             extmark:setVirtText(bufnr, row, chunks)
         else
-            local winid = fn.bufwinid(bufnr ~= 0 and bufnr or '')
+            local winid = fn.bufwinid(bufnr ~= 0 and bufnr or "")
             if winid == -1 then
                 return
             end
             local textOff = utils.textOff(winid)
             local lineWidth = api.nvim_win_get_width(winid) - textOff
             local text = chunksToText(chunks)
-            local pos = {exLnum, exCol}
-            if when == 'always' then
+            local pos = { exLnum, exCol }
+            if when == "always" then
                 floatwin:updateFloatWin(winid, pos, chunks, text, lineWidth, textOff)
             else
                 if enoughSizeForVirt(winid, exLnum, text, lineWidth) then
@@ -255,12 +260,12 @@ Render.set_virt = Render.setVirt
 
 function Render:setVisualArea()
     local function calibrate(pos)
-        return {pos[1] - 1, pos[2]}
+        return { pos[1] - 1, pos[2] }
     end
 
-    local start = calibrate(api.nvim_buf_get_mark(0, '<'))
-    local finish = calibrate(api.nvim_buf_get_mark(0, '>'))
-    extmark:setHighlight(0, 'Visual', start, finish)
+    local start = calibrate(api.nvim_buf_get_mark(0, "<"))
+    local finish = calibrate(api.nvim_buf_get_mark(0, ">"))
+    extmark:setHighlight(0, "Visual", start, finish)
 end
 
 function Render:clearVisualArea()
@@ -268,7 +273,7 @@ function Render:clearVisualArea()
 end
 
 function Render.addWinHighlight(winid, startPos, endPos)
-    winhl.addHighlight(winid, startPos, endPos, 'HlSearchNear')
+    winhl.addHighlight(winid, startPos, endPos, "HlSearchNear")
 end
 
 local function getIdxLnum(posList, i)
@@ -303,7 +308,7 @@ function Render:doLens(bufnr, startPosList, nearest, idx, relIdx, limitRange, fo
             if lastHlLnum ~= iLnum then
                 lastHlLnum = iLnum
                 rIdx = i - tIdx - 1
-                lineRenderList[iLnum] = {i, rIdx}
+                lineRenderList[iLnum] = { i, rIdx }
             end
         end
 
@@ -323,7 +328,7 @@ function Render:doLens(bufnr, startPosList, nearest, idx, relIdx, limitRange, fo
             if lastHlLnum ~= iLnum then
                 lastHlLnum = iLnum
                 rIdx = i - bIdx
-                lineRenderList[startPosList[i - 1][1]] = {i - 1, rIdx}
+                lineRenderList[startPosList[i - 1][1]] = { i - 1, rIdx }
             end
             if iLnum > botLimit then
                 break
@@ -332,13 +337,13 @@ function Render:doLens(bufnr, startPosList, nearest, idx, relIdx, limitRange, fo
 
         if lastI and iLnum <= botLimit then
             rIdx = lastI - bIdx + 1
-            lineRenderList[iLnum] = {lastI, rIdx}
+            lineRenderList[iLnum] = { lastI, rIdx }
         end
         lineRenderList[idxLnum] = nil
     end
 
-    extmark:clearBuf(bufnr)
-    self:addLens(bufnr, startPosList, true, idx, relIdx)
+    -- extmark:clearBuf(bufnr)
+    self:addLens(bufnr, startPosList, true, idx, relIdx, extmark)
     for _, idxPairs in pairs(lineRenderList) do
         self:addLens(bufnr, startPosList, false, idxPairs[1], idxPairs[2])
     end
@@ -373,18 +378,21 @@ function Render:start(force)
             self.status = START
             table.insert(self.stopDisposes, decorator:initialize(self.ns))
             table.insert(self.stopDisposes, self:createEvents())
-            event:on('RegionChanged', function()
+            event:on("RegionChanged", function()
                 self:refresh(true)
             end, self.stopDisposes)
-            event:on('HlSearchCleared', function()
+            event:on("HlSearchCleared", function()
                 self:mayStop()
             end, self.stopDisposes)
-            table.insert(self.stopDisposes, disposable:create(function()
-                position:resetPool()
-                self.status = STOP
-                self.clearAll()
-                self.throttledRefresh:cancel()
-            end))
+            table.insert(
+                self.stopDisposes,
+                disposable:create(function()
+                    position:resetPool()
+                    self.status = STOP
+                    self.clearAll()
+                    self.throttledRefresh:cancel()
+                end)
+            )
         end
         if not self.throttledRefresh then
             return
@@ -425,17 +433,20 @@ function Render:initialize(namespace)
         end
         self.force = nil
     end, 150)
-    table.insert(self.disposables, disposable:create(function()
-        self.status = STOP
-        self.initialized = false
-        self.throttledRefresh:cancel()
-        self.throttledRefresh = nil
-    end))
+    table.insert(
+        self.disposables,
+        disposable:create(function()
+            self.status = STOP
+            self.initialized = false
+            self.throttledRefresh:cancel()
+            self.throttledRefresh = nil
+        end)
+    )
     table.insert(self.disposables, extmark:initialize(namespace, config.virt_priority))
     table.insert(self.disposables, floatwin:initialize(config.float_shadow_blend))
     self.ns = namespace
     self.initialized = true
-    DUMMY_POS = {1, 1}
+    DUMMY_POS = { 1, 1 }
     return self
 end
 

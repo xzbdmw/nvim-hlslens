@@ -3,14 +3,14 @@ local cmd = vim.cmd
 local api = vim.api
 local uv = vim.loop
 
-local utils = require('hlslens.utils')
-local render = require('hlslens.render')
-local config = require('hlslens.config')
-local event = require('hlslens.lib.event')
-local parser = require('hlslens.cmdline.parser')
-local fold = require('hlslens.cmdline.fold')
-local debounce = require('hlslens.lib.debounce')
-local disposable = require('hlslens.lib.disposable')
+local utils = require("hlslens.utils")
+local render = require("hlslens.render")
+local config = require("hlslens.config")
+local event = require("hlslens.lib.event")
+local parser = require("hlslens.cmdline.parser")
+local fold = require("hlslens.cmdline.fold")
+local debounce = require("hlslens.lib.debounce")
+local disposable = require("hlslens.lib.disposable")
 
 ---@class HlslensCmdLine
 ---@field attached boolean
@@ -34,11 +34,11 @@ local disposable = require('hlslens.lib.disposable')
 ---@field keyCode number[]
 local CmdLine = {
     initialized = false,
-    disposables = {}
+    disposables = {},
 }
 
 local function decPos(pos)
-    return {pos[1], math.max(0, pos[2] - 1)}
+    return { pos[1], math.max(0, pos[2] - 1) }
 end
 
 function CmdLine:resetState()
@@ -51,8 +51,7 @@ end
 function CmdLine:typeUpDown()
     -- <Up> = 0x80 0x6b 0x75
     -- <Down> = 0x80 0x6b 0x64
-    return self.keyCode[1] == 0x80 and self.keyCode[2] == 0x6b and
-        (self.keyCode[3] == 0x75 or self.keyCode[3] == 0x64)
+    return self.keyCode[1] == 0x80 and self.keyCode[2] == 0x6b and (self.keyCode[3] == 0x75 or self.keyCode[3] == 0x64)
 end
 
 ---
@@ -74,12 +73,12 @@ end
 ---@return table|nil
 function CmdLine:searchRange(pattern)
     api.nvim_win_set_cursor(0, self.searchStart)
-    local flag = self.isSubstitute and 'c' or (self.type == '?' and 'b' or '')
+    local flag = self.isSubstitute and "c" or (self.type == "?" and "b" or "")
     if self.range then
-        flag = flag .. 'n'
+        flag = flag .. "n"
     end
     local pos = utils.searchPosSafely(pattern, flag)
-    if utils.comparePosition(pos, {0, 0}) == 0 then
+    if utils.comparePosition(pos, { 0, 0 }) == 0 then
         return
     end
     if self.range then
@@ -92,15 +91,15 @@ function CmdLine:searchRange(pattern)
         recompute = true,
         maxcount = 100000,
         timeout = 100,
-        pattern = pattern
+        pattern = pattern,
     })
     local range
     if ok and res.incomplete == 0 and res.total and res.total > 0 then
         self.currentIdx = res.current
         self.total = res.total
-        local endPos = utils.searchPosSafely(pattern, 'cenW')
+        local endPos = utils.searchPosSafely(pattern, "cenW")
         self.matchStart, self.matchEnd = decPos(pos), decPos(endPos)
-        range = {pos, endPos}
+        range = { pos, endPos }
     end
     return range
 end
@@ -114,19 +113,19 @@ function CmdLine:incSearchPos(forward, pattern)
     local cursor = self.matchEnd
     api.nvim_win_set_cursor(0, cursor)
     if forward then
-        pos = utils.searchPosSafely(pattern, '')
+        pos = utils.searchPosSafely(pattern, "")
         self.currentIdx = self.currentIdx == self.total and 1 or self.currentIdx + 1
     else
-        utils.searchPosSafely(pattern, 'b')
-        pos = utils.searchPosSafely(pattern, 'b')
+        utils.searchPosSafely(pattern, "b")
+        pos = utils.searchPosSafely(pattern, "b")
         self.currentIdx = self.currentIdx == 1 and self.total or self.currentIdx - 1
     end
     api.nvim_win_set_cursor(0, cursor)
-    if utils.comparePosition(pos, {0, 0}) > 0 then
+    if utils.comparePosition(pos, { 0, 0 }) > 0 then
         self.searchStart = self.matchStart
     end
     vim.schedule(function()
-        self.matchStart = decPos(utils.searchPosSafely(pattern, 'bcnW'))
+        self.matchStart = decPos(utils.searchPosSafely(pattern, "bcnW"))
         self.matchEnd = api.nvim_win_get_cursor(0)
     end)
     return pos
@@ -137,15 +136,14 @@ function CmdLine:toggleHlSearch(enable)
         return
     end
     if enable then
-        cmd('if !&hlsearch | noa set hlsearch | end')
+        cmd("if !&hlsearch | noa set hlsearch | end")
     else
-        cmd('noa set nohlsearch')
+        cmd("noa set nohlsearch")
     end
 end
 
 function CmdLine:attach(typ)
-    self.attached = self.incSearch and (typ == '/' or typ == '?' or typ == ':') and
-        vim.o.hls and vim.o.is
+    self.attached = self.incSearch and (typ == "/" or typ == "?" or typ == ":") and vim.o.hls and vim.o.is
     if not self.attached then
         return
     end
@@ -153,7 +151,7 @@ function CmdLine:attach(typ)
 
     if vim.wo.foldenable then
         local fdo = vim.o.fdo
-        if fdo:find('search', 1, true) or fdo:find('all', 1, true) then
+        if fdo:find("search", 1, true) or fdo:find("all", 1, true) then
             self.fold = fold:new()
         end
     end
@@ -173,7 +171,7 @@ function CmdLine:attach(typ)
             return
         end
         local b1, b2, b3 = char:byte(1, -1)
-        self.keyCode = {b1, b2, b3}
+        self.keyCode = { b1, b2, b3 }
         -- <C-g> = 0x7
         -- <C-t> = 0x14
         if b2 == nil and self.currentIdx > 0 and self.total > 0 and (b1 == 0x07 or b1 == 0x14) then
@@ -186,19 +184,23 @@ function CmdLine:attach(typ)
             -- 4. Redo the previous cancelled action for incsearch.
             -- <C-h><C-t><C-g> + b1
             if self.isSubstitute then
-                cmd('noa set nois')
+                cmd("noa set nois")
                 -- ignore `CmdlineChanged` event to avoid to parse cmdline recursively
                 self.attached = false
                 vim.schedule(function()
                     self.attached = true
-                    cmd('noa set is')
-                    api.nvim_feedkeys(('%c%c%c%c'):format(0x08, 0x14, 0x07, b1), 'in', false)
+                    cmd("noa set is")
+                    api.nvim_feedkeys(("%c%c%c%c"):format(0x08, 0x14, 0x07, b1), "in", false)
                 end)
                 self.isSubstitute = nil
             else
                 local pos = self:incSearchPos(b1 == 0x07, self.parser.pattern)
                 if pos and not self.parser:hasOffset() then
                     self:doRender(pos)
+                    require("config.utils").update_preview_state(_G.parent_bufnr, _G.parent_winid)
+                    -- vim.api.nvim_win_call(_G.parent_bufnr, function()
+                    --     vim.cmd("norm! zz")
+                    -- end)
                 end
             end
         end
@@ -211,7 +213,7 @@ function CmdLine:didChange()
     if not self.searching then
         return
     end
-    if self.parser.type == ':' then
+    if self.parser.type == ":" then
         self.isSubstitute = self.parser:isSubstitute()
         self.range = self.parser.range
         if self.isSubstitute then
@@ -286,7 +288,7 @@ function CmdLine:onChanged()
     -- emitting key sequences from a key mapping
     if deltaTime and deltaTime < 1e7 and not self:typeUpDown() then
         self.debouncedSearch()
-        if self.type ~= ':' and isVisualArea then
+        if self.type ~= ":" and isVisualArea then
             local cursor = api.nvim_win_get_cursor(0)
             -- toggle hlsearch depends on whether cursor is moved or not
             self:toggleHlSearch(utils.comparePosition(cursor, self.searchStart) ~= 0)
@@ -318,21 +320,24 @@ function CmdLine:initialize(ns)
         end
         self:didChange()
         -- ^R ^[
-        api.nvim_feedkeys(('%c%c'):format(0x12, 0x1b), 'in', false)
+        api.nvim_feedkeys(("%c%c"):format(0x12, 0x1b), "in", false)
     end, 300)
-    table.insert(self.disposables, disposable:create(function()
-        self.initialized = false
-        self.debouncedSearch:cancel()
-        self.debouncedSearch = nil
-    end))
-    event:on('CmdlineEnter', function(cmdType)
+    table.insert(
+        self.disposables,
+        disposable:create(function()
+            self.initialized = false
+            self.debouncedSearch:cancel()
+            self.debouncedSearch = nil
+        end)
+    )
+    event:on("CmdlineEnter", function(cmdType)
         self:attach(cmdType)
     end, self.disposables)
-    event:on('CmdlineLeave', function(cmdType, abort)
+    event:on("CmdlineLeave", function(cmdType, abort)
         self:detach(cmdType, abort)
         render:start(true)
     end, self.disposables)
-    event:on('CmdlineChanged', function(cmdType)
+    event:on("CmdlineChanged", function(cmdType)
         self:onChanged()
     end, self.disposables)
     self.initialized = true

@@ -3,18 +3,17 @@ local api = vim.api
 ---@class HlslensRenderExtmark
 local Extmark = {
     bufs = {},
-    initialized = false
+    initialized = false,
 }
 
 function Extmark:listVirtEol(bufnr, row, endRow)
-    local marks = api.nvim_buf_get_extmarks(bufnr, self.ns, {row, 0}, {endRow, -1},
-        {details = true})
+    local marks = api.nvim_buf_get_extmarks(bufnr, self.ns, { row, 0 }, { endRow, -1 }, { details = true })
     local res = {}
     for _, mark in ipairs(marks) do
         local details = mark[4]
         local s = mark[2]
-        if s and details.virt_text and details.virt_text_pos == 'eol' then
-            table.insert(res, {row = s, virtText = details.virt_text})
+        if s and details.virt_text and details.virt_text_pos == "eol" then
+            table.insert(res, { row = s, virtText = details.virt_text })
         end
     end
     return res
@@ -28,8 +27,8 @@ function Extmark:setVirtText(bufnr, row, virtText, opts)
         id = opts.id,
         virt_text = virtText,
         virt_text_win_col = opts.virt_text_win_col,
-        hl_mode = opts.hl_mode or 'combine',
-        priority = opts.priority or self.priority
+        hl_mode = opts.hl_mode or "combine",
+        priority = 1000,
     })
 end
 
@@ -43,15 +42,17 @@ end
 function Extmark:setHighlight(bufnr, hlGroup, start, finish, opts)
     local function doUnPack(pos)
         vim.validate({
-            pos = {pos,
+            pos = {
+                pos,
                 function(p)
                     local t = type(p)
-                    return t == 'table' or t == 'number'
-                end, 'must be table or number type'
-            }
+                    return t == "table" or t == "number"
+                end,
+                "must be table or number type",
+            },
         })
         local row, col
-        if type(pos) == 'table' then
+        if type(pos) == "table" then
             row, col = unpack(pos)
         else
             row = pos
@@ -66,15 +67,15 @@ function Extmark:setHighlight(bufnr, hlGroup, start, finish, opts)
             return region
         end
         if row == endRow then
-            region[row] = {col, endCol}
+            region[row] = { col, endCol }
             return region
         end
-        region[row] = {col, -1}
+        region[row] = { col, -1 }
         for i = row + 1, endRow - 1 do
-            region[i] = {0, -1}
+            region[i] = { 0, -1 }
         end
         if endCol > 0 then
-            region[endRow] = {0, endCol}
+            region[endRow] = { 0, endCol }
         end
         return region
     end
@@ -133,7 +134,7 @@ function Extmark:initialize(namespace, priority)
         return self
     end
     self.ns = namespace
-    self.hlNs = self.hlNs or api.nvim_create_namespace('')
+    self.hlNs = self.hlNs or api.nvim_create_namespace("")
     self.priority = priority
     self.bufs = {}
     self.initialized = true
