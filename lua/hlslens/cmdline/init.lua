@@ -233,7 +233,7 @@ function CmdLine:didChange()
         self:doRender(range[1], range[2])
     else
         self:resetState()
-        render.clear(true, 0, true)
+        -- render.clear(true, 0, true)
     end
 end
 
