@@ -197,6 +197,9 @@ function CmdLine:attach(typ)
 				local pos = self:incSearchPos(b1 == 0x07, self.parser.pattern)
 				if pos and not self.parser:hasOffset() then
 					self:doRender(pos)
+					vim.defer_fn(function()
+						require("treesitter-context").context_hlslens_force_update(_G.parent_bufnr, _G.parent_winid)
+					end, 10)
 				end
 			end
 		end
