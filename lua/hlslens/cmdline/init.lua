@@ -79,6 +79,7 @@ function CmdLine:searchRange(pattern)
 	end
 	local pos = utils.searchPosSafely(pattern, flag)
 	if utils.comparePosition(pos, { 0, 0 }) == 0 then
+		require("hlslens.render.extmark"):clearBuf(0)
 		return
 	end
 	if self.range then
