@@ -79,7 +79,6 @@ function CmdLine:searchRange(pattern)
 	end
 	local pos = utils.searchPosSafely(pattern, flag)
 	if utils.comparePosition(pos, { 0, 0 }) == 0 then
-		require("hlslens.render.extmark"):clearBuf(0)
 		return
 	end
 	if self.range then
@@ -227,11 +226,12 @@ function CmdLine:didChange()
 	end
 	local range
 	if self.parser:validatePattern() then
-		range = self:searchRange(self.parser.pattern)
+		range = self:searchRange(vim.trim(self.parser.pattern))
 	end
 	if range then
 		self:doRender(range[1], range[2])
 	else
+		config.override_lens(render, nil, nil, nil, nil, require("hlslens.render.extmark"))
 		self:resetState()
 		-- render.clear(true, 0, true)
 	end
