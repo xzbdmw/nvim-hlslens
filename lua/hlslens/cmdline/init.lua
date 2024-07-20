@@ -143,6 +143,9 @@ function CmdLine:toggleHlSearch(enable)
 end
 
 function CmdLine:attach(typ)
+	if type == ":" then
+		return
+	end
 	self.attached = self.incSearch and (typ == "/" or typ == "?" or typ == ":") and vim.o.hls and vim.o.is
 	if not self.attached then
 		return
