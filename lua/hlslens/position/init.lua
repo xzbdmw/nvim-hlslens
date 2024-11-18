@@ -33,6 +33,71 @@ function Position:new(bufnr, changedtick, pattern)
 	return o
 end
 
+local function is_search_mode()
+	if
+		vim.o.incsearch
+		and vim.o.hlsearch
+		and api.nvim_get_mode().mode == "c"
+		and vim.tbl_contains({ "/", "?" }, fn.getcmdtype())
+	then
+		return true
+	end
+	return false
+end
+
+local function get_pattern()
+	if is_search_mode() then
+		return vim.fn.getcmdline()
+	end
+	return vim.v.hlsearch == 1 and fn.getreg("/") --[[@as string]]
+		or ""
+end
+
+function Position:compute1(bufnr)
+	local pattern = get_pattern()
+	if pattern == "" then
+		return
+	end
+	bufnr = bufnr or api.nvim_get_current_buf()
+	local o = self.pool[bufnr]
+	local changedtick = api.nvim_buf_get_changedtick(bufnr)
+	if o and o.changedtick == changedtick and o.pattern == pattern then
+		local hit = true
+		if pattern:find([[\%V]], 1, true) then
+			local vs = api.nvim_buf_get_mark(bufnr, "<")
+			local ve = api.nvim_buf_get_mark(bufnr, ">")
+			hit = (not o.visualAreaStart or utils.comparePosition(vs, o.visualAreaStart) == 0)
+				and (not o.visualAreaEnd or utils.comparePosition(ve, o.visualAreaEnd) == 0)
+			o.visualAreaStart, o.visualAreaEnd = vs, ve
+		end
+		if hit then
+			return o
+		end
+	end
+	if not self.rangeModule.valid(pattern) then
+		return
+	end
+
+	-- fast and simple way to prevent memory leaking :)
+	if self.poolCount > 5 then
+		self.pool = {}
+		self.poolCount = 0
+	end
+
+	o = self:new(bufnr, changedtick, pattern)
+	o.sList, o.eList = self.rangeModule.buildList(bufnr, pattern)
+
+	local l = { startPos = o.sList, endPos = o.eList }
+	-- TODO
+	-- will remove build_position_cb
+	l.start_pos = l.startPos
+	l.end_pos = l.endPos
+	if type(config.build_position_cb) == "function" then
+		pcall(config.build_position_cb, l, bufnr, changedtick, pattern)
+	end
+
+	return o
+end
 ---make sure run under current buffer
 ---@param bufnr? number
 ---@return HlslensPosition?

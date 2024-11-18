@@ -144,7 +144,7 @@ function Render:createEvents()
 			event:emit(ev.event)
 		end,
 	})
-	event:on("CursorMoved", self.throttledRefresh, dps)
+	-- event:on("CursorMoved", self.throttledRefresh, dps)
 	event:on("TermEnter", function()
 		self.clear(true, 0, true)
 	end, dps)
