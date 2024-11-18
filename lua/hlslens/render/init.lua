@@ -86,6 +86,9 @@ local function refreshCurrentBuf()
 		self:stop()
 		return
 	end
+	if pos.sList == nil then
+		return
+	end
 	if #pos.sList == 0 then
 		self.clear(true, 0, true)
 		return

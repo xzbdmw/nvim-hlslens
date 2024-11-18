@@ -5,32 +5,32 @@ local Disposable = {}
 ---
 ---@param disposables HlslensDisposable[]
 function Disposable.disposeAll(disposables)
-    for _, item in ipairs(disposables) do
-        if item.dispose then
-            item:dispose()
-        end
-    end
+	for _, item in ipairs(disposables) do
+		if item.dispose then
+			item:dispose()
+		end
+	end
 end
 
 ---
 ---@param func fun()
 ---@return HlslensDisposable
 function Disposable:new(func)
-    local o = setmetatable({}, self)
-    self.__index = self
-    o.func = func
-    return o
+	local o = setmetatable({}, self)
+	self.__index = self
+	o.func = func
+	return o
 end
 
 ---
 ---@param func fun()
 ---@return HlslensDisposable
 function Disposable:create(func)
-    return self:new(func)
+	return self:new(func)
 end
 
 function Disposable:dispose()
-    self.func()
+	self.func()
 end
 
 return Disposable

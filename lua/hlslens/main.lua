@@ -31,6 +31,10 @@ local function createEvents()
 		pattern = { "/", "?", ":" },
 		group = gid,
 		callback = function(ev)
+			local count = vim.api.nvim_buf_line_count(0)
+			if count > 10000 then
+				return
+			end
 			local e, cchar = ev.event, ev.file
 			if e == "CmdlineLeave" then
 				event:emit(e, cchar, vim.v.event.abort)

@@ -143,6 +143,9 @@ function CmdLine:toggleHlSearch(enable)
 end
 
 function CmdLine:attach(typ)
+	if vim.api.nvim_buf_line_count(0) > 10000 then
+		return
+	end
 	self.attached = self.incSearch and (typ == "/" or typ == "?" or typ == ":") and vim.o.hls and vim.o.is
 	if not self.attached then
 		return
@@ -197,9 +200,17 @@ function CmdLine:attach(typ)
 				local pos = self:incSearchPos(b1 == 0x07, self.parser.pattern)
 				if pos and not self.parser:hasOffset() then
 					self:doRender(pos)
-					vim.defer_fn(function()
-						require("treesitter-context").context_hlslens_force_update(_G.parent_bufnr, _G.parent_winid)
-					end, 10)
+					-- vim.defer_fn(function()
+					-- 	local pass = false
+					-- 	for _, win in ipairs(vim.api.nvim_list_wins()) do
+					-- 		if win == _G.parent_winid then
+					-- 			pass = true
+					-- 		end
+					-- 	end
+					-- 	if pass then
+					-- 		-- require("treesitter-context").context_hlslens_force_update(_G.parent_bufnr, _G.parent_winid)
+					-- 	end
+					-- end, 10)
 				end
 			end
 		end
