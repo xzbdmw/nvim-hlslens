@@ -345,11 +345,16 @@ function CmdLine:initialize(ns)
 		self:attach(cmdType)
 	end, self.disposables)
 	event:on("CmdlineLeave", function(cmdType, abort)
+		if vim.api.nvim_buf_line_count(0) >= 10000 then
+			self:onChanged()
+		end
 		self:detach(cmdType, abort)
 		render:start(true)
 	end, self.disposables)
 	event:on("CmdlineChanged", function(cmdType)
-		self:onChanged()
+		if vim.api.nvim_buf_line_count(0) < 10000 then
+			self:onChanged()
+		end
 	end, self.disposables)
 	self.initialized = true
 	return self
