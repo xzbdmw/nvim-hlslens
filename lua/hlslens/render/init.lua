@@ -82,6 +82,10 @@ local function refreshCurrentBuf()
 	local self = Render
 	local bufnr = api.nvim_get_current_buf()
 	local pos = position:compute(bufnr)
+	vim.g.search_pos = pos
+	api.nvim_exec_autocmds("User", {
+		pattern = "SatelliteSearch",
+	})
 	if not pos then
 		self:stop()
 		return
